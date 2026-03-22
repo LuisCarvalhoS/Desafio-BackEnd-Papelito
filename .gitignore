@@ -1,0 +1,27 @@
+# compiled output
+/dist
+
+# dependencies
+/node_modules
+
+# IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# env files
+.env
+
+# logs
+*.log
+npm-debug.log*
+
+# coverage
+/coverage
+
+# copilot instructions (local only)
+/.github
