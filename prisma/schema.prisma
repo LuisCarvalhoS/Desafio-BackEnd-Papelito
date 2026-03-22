@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SalesforceStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+
+model Order {
+  id                Int              @id @default(autoincrement())
+  external_id       String           @unique
+  total             Decimal          @db.Decimal(10, 2)
+  salesforce_status SalesforceStatus @default(PENDING)
+  salesforce_id     String?
+  error_message     String?
+  created_at        DateTime         @default(now())
+
+  customer Customer?
+  items    OrderItem[]
+}
+
+model Customer {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String
+  document String
+
+  order_id Int   @unique
+  order    Order @relation(fields: [order_id], references: [id])
+}
+
+model OrderItem {
+  id       Int     @id @default(autoincrement())
+  sku      String
+  quantity Int
+  price    Decimal @db.Decimal(10, 2)
+
+  order_id Int
+  order    Order @relation(fields: [order_id], references: [id])
+}
