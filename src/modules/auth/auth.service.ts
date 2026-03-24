@@ -7,7 +7,7 @@ export class AuthService {
 
   login(username: string, password: string): { access_token: string } {
     if (username !== 'admin' || password !== 'admin') {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const payload = { sub: '1', username };

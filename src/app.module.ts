@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { DatabaseModule } from './modules/database/database.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { SalesforceModule } from './modules/salesforce/salesforce.module';
 
 @Module({
@@ -12,6 +13,7 @@ import { SalesforceModule } from './modules/salesforce/salesforce.module';
     DatabaseModule,
     AuthModule,
     SalesforceModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
