@@ -32,7 +32,12 @@ describe('SalesforceService', () => {
     jest.spyOn(service as any, 'sleep').mockResolvedValue(undefined);
   });
 
-  describe('syncOrder — success', () => {
+  describe('syncOrder - success', () => {
+    beforeEach(() => {
+      // Ensure Math.random() >= 0.6 so the 60% random failure does not trigger
+      jest.spyOn(Math, 'random').mockReturnValue(0.8);
+    });
+
     it('should return a salesforce_id matching SF-xxxxxxxx format', async () => {
       const result = await service.syncOrder(mockOrder);
 
@@ -49,7 +54,30 @@ describe('SalesforceService', () => {
     });
   });
 
-  describe('syncOrder — failure (SALESFORCE_FAIL=true)', () => {
+  describe('syncOrder - random failure (60% chance by default)', () => {
+    it('should throw SalesforceException when all retries hit the random failure', async () => {
+      // Math.random() = 0.1 < 0.6, so every attempt triggers random failure
+      jest.spyOn(Math, 'random').mockReturnValue(0.1);
+
+      await expect(service.syncOrder(mockOrder)).rejects.toThrow(
+        SalesforceException,
+      );
+    });
+
+    it('should retry on random failure and succeed if a subsequent attempt passes', async () => {
+      const spy = jest.spyOn(service as any, 'simulateApiCall');
+      spy
+        .mockRejectedValueOnce(new Error('Random transient failure'))
+        .mockResolvedValueOnce({ salesforce_id: 'SF-recovered1' });
+
+      const result = await service.syncOrder(mockOrder);
+
+      expect(result.salesforce_id).toBe('SF-recovered1');
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('syncOrder - failure (SALESFORCE_FAIL=true)', () => {
     beforeEach(() => {
       jest.spyOn(configService, 'get').mockReturnValue('true');
     });
@@ -82,20 +110,6 @@ describe('SalesforceService', () => {
       await expect(service.syncOrder(mockOrder)).rejects.toThrow();
 
       expect(spy).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  describe('syncOrder — retry then succeed', () => {
-    it('should succeed after one failed attempt', async () => {
-      const spy = jest.spyOn(service as any, 'simulateApiCall');
-      spy
-        .mockRejectedValueOnce(new Error('Temporary failure'))
-        .mockResolvedValueOnce({ salesforce_id: 'SF-abc12345' });
-
-      const result = await service.syncOrder(mockOrder);
-
-      expect(result.salesforce_id).toBe('SF-abc12345');
-      expect(spy).toHaveBeenCalledTimes(2);
     });
   });
 

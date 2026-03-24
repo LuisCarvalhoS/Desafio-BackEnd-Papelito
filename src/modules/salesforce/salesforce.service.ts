@@ -74,9 +74,13 @@ export class SalesforceService {
   ): Promise<SyncOrderResult> {
     await this.sleep(this.randomBetween(200, 600));
 
-    const shouldFail = this.config.get<string>('SALESFORCE_FAIL') === 'true';
+    const forceFailure =
+      this.config.get<string>('SALESFORCE_FAIL') === 'true';
+    // 60% random failure rate per attempt (~21% of orders end up FAILED after 3 retries)
+    // SALESFORCE_FAIL=true forces 100% failure on every attempt
+    const randomFailure = !forceFailure && Math.random() < 0.6;
 
-    if (shouldFail) {
+    if (forceFailure || randomFailure) {
       if (Math.random() < 0.5) {
         throw new Error('Salesforce API timeout: request exceeded 30000ms');
       } else {
