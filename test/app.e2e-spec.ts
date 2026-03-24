@@ -4,6 +4,10 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 
+// E2E tests connect to localhost instead of Docker's 'db' hostname
+process.env.DATABASE_URL =
+  'postgresql://postgres:postgres@localhost:5432/papelito?schema=public';
+
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 

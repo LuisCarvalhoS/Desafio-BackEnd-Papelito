@@ -61,8 +61,19 @@ export class OrdersService {
       throw error;
     }
 
-    this.logger.log(`Order #${dto.external_id} persisted with id=${order.id}`);
+    this.logger.log(`Order #${dto.external_id} persisted with id=${order.id}, status=PENDING`);
 
+    // Fire-and-forget: sync with Salesforce in the background
+    this.syncWithSalesforce(order).catch(() => {
+      // Errors are already handled inside syncWithSalesforce
+    });
+
+    return this.toResponseDto(order);
+  }
+
+  private async syncWithSalesforce(
+    order: Order & { customer: Customer | null; items: OrderItem[] },
+  ): Promise<void> {
     try {
       const result = await this.salesforceService.syncOrder({
         id: order.id,
@@ -76,40 +87,34 @@ export class OrdersService {
         })),
       });
 
-      const synced = await this.prisma.order.update({
+      await this.prisma.order.update({
         where: { id: order.id },
         data: {
           salesforce_status: 'SYNCED',
           salesforce_id: result.salesforce_id,
         },
-        include: { customer: true, items: true },
       });
 
       this.logger.log(
-        `Order #${dto.external_id} synced with Salesforce (${result.salesforce_id})`,
+        `Order #${order.external_id} synced with Salesforce (${result.salesforce_id})`,
       );
-
-      return this.toResponseDto(synced);
     } catch (error) {
       const errorMessage =
         error instanceof SalesforceException
           ? error.message
           : 'Unknown Salesforce error';
 
-      const failed = await this.prisma.order.update({
+      await this.prisma.order.update({
         where: { id: order.id },
         data: {
           salesforce_status: 'FAILED',
           error_message: errorMessage,
         },
-        include: { customer: true, items: true },
       });
 
       this.logger.warn(
-        `Order #${dto.external_id} Salesforce sync failed: ${errorMessage}`,
+        `Order #${order.external_id} Salesforce sync failed: ${errorMessage}`,
       );
-
-      return this.toResponseDto(failed);
     }
   }
 
