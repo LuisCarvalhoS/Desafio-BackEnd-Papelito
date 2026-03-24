@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -24,27 +25,41 @@ export class OrdersService {
   async createOrder(dto: CreateOrderDto): Promise<OrderResponseDto> {
     this.logger.log(`Creating order #${dto.external_id}`);
 
-    const order = await this.prisma.order.create({
-      data: {
-        external_id: dto.external_id,
-        total: new Prisma.Decimal(dto.total),
-        customer: {
-          create: {
-            name: dto.customer.name,
-            email: dto.customer.email,
-            document: dto.customer.document,
+    let order: Order & { customer: Customer | null; items: OrderItem[] };
+
+    try {
+      order = await this.prisma.order.create({
+        data: {
+          external_id: dto.external_id,
+          total: new Prisma.Decimal(dto.total),
+          customer: {
+            create: {
+              name: dto.customer.name,
+              email: dto.customer.email,
+              document: dto.customer.document,
+            },
+          },
+          items: {
+            create: dto.items.map((item) => ({
+              sku: item.sku,
+              quantity: item.quantity,
+              price: new Prisma.Decimal(item.price),
+            })),
           },
         },
-        items: {
-          create: dto.items.map((item) => ({
-            sku: item.sku,
-            quantity: item.quantity,
-            price: new Prisma.Decimal(item.price),
-          })),
-        },
-      },
-      include: { customer: true, items: true },
-    });
+        include: { customer: true, items: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `Order with external_id '${dto.external_id}' already exists`,
+        );
+      }
+      throw error;
+    }
 
     this.logger.log(`Order #${dto.external_id} persisted with id=${order.id}`);
 
