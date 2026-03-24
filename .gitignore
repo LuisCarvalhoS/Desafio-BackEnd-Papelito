@@ -15,6 +15,7 @@
 
 # env files
 .env
+.env.example
 
 # logs
 *.log
